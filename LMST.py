@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         # Configure the neural network model
         model = Sequential()
-        n_output_neurons = 12
+        n_output_neurons = 91
 
         x_train, y_train = partition_dataset(
             input_sequence_length, output_sequence_length, train_data)
