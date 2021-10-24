@@ -7,6 +7,10 @@ import plotly.express as px  # to plot the time series plot
 from sklearn import metrics  # for the evaluation
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout
+import math
+from keras.callbacks import EarlyStopping
 
 
 def get_unique_customer_ids(data: DataFrame) -> List[int]:
@@ -28,26 +32,31 @@ def get_all_unique_dates(data: DataFrame) -> List:
 def get_all_rows_with_date(data: DataFrame, date: int) -> List:
     return data[data['DATE'] == date]
 
+# kok https://www.relataly.com/time-series-forecasting-multi-step-regression-using-neural-networks-with-multiple-outputs-in-python/5800/#h-step-3-train-the-multi-output-neural-network-model
 
-# Kok https://analyticsindiamag.com/how-to-do-multivariate-time-series-forecasting-using-lstm/
-def custom_ts_multi_data_prep(dataset, target, start, end, window, horizon):
-    X = []
-    y = []
-    start = start + window
-    if end is None:
-        end = len(dataset) - horizon
-    for i in range(start, end):
-        indices = range(i-window, i)
-        X.append(dataset[indices])
-        indicey = range(i+1, i+1+horizon)
-        y.append(target[indicey])
-    return np.array(X), np.array(y)
+
+def partition_dataset(input_sequence_length, output_sequence_length, data):
+    x, y = [], []
+    data_len = data.shape[0]
+    for i in range(input_sequence_length, data_len - output_sequence_length):
+        # contains input_sequence_length values 0-input_sequence_length * columns
+        x.append(data[i-input_sequence_length:i])
+        # contains the prediction values for validation (3rd column = Close),  for single-step prediction
+        y.append(data[i:i + output_sequence_length])
+
+    # Convert the x and y to numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+    return x, y
 
 
 if __name__ == "__main__":
 
     # Get data
     data = pd.read_csv("Output.csv", decimal=",")
+
+    # Sort by date
+    data.sort_values(by=['DATE'])
 
     # Convert categorical variables to numbers
     for i in data.select_dtypes('object').columns:
@@ -84,10 +93,60 @@ if __name__ == "__main__":
             product_mixes).transpose().fillna(0)
         print(consolidated_customer_data)
 
-        X_scaler = MinMaxScaler()
-        Y_scaler = MinMaxScaler()
-        X_data = X_scaler.fit_transform(
-            data[['holiday', 'temp', 'rain_1h', 'snow_1h', 'clouds_all', 'weather_main', 'weather_description', 'traffic_volume']])
-        Y_data = Y_scaler.fit_transform(data)
+        # Predict customer.
+
+        input_sequence_length = 50
+        output_sequence_length = 10
+
+        df_train = consolidated_customer_data.copy()
+        np_scaled = consolidated_customer_data.copy()
+
+        train_data_length = math.ceil(np_scaled.shape[0] * 0.8)
+
+        # Create the training and test data
+        train_data = np_scaled[0:train_data_length]
+        test_data = np_scaled[train_data_length - input_sequence_length:]
+
+        # Configure the neural network model
+        model = Sequential()
+        n_output_neurons = 12
+
+        x_train, y_train = partition_dataset(
+            input_sequence_length, output_sequence_length, train_data)
+        x_test, y_test = partition_dataset(
+            input_sequence_length, output_sequence_length, test_data)
+
+        # Model with n_neurons = inputshape Timestamps, each with x_train.shape[2] variables
+        n_input_neurons = x_train.shape[1] * x_train.shape[2]
+        print(n_input_neurons, x_train.shape[1], x_train.shape[2])
+        model.add(LSTM(n_input_neurons, return_sequences=True,
+                       input_shape=(x_train.shape[1], x_train.shape[2])))
+        model.add(LSTM(n_input_neurons, return_sequences=False))
+        model.add(Dense(20))
+        model.add(Dense(n_output_neurons))
+
+        # Compile the model
+        model.compile(optimizer='adam', loss='mse')
+
+        # Training the model
+        epochs = 10
+        batch_size = 16
+        early_stop = EarlyStopping(monitor='loss', patience=5, verbose=1)
+        history = model.fit(x_train, y_train,
+                            batch_size=batch_size,
+                            epochs=epochs,
+                            validation_data=(x_test, y_test)
+                            )
+
+        # Plot training & validation loss values
+        fig, ax = plt.subplots(figsize=(10, 5), sharex=True)
+        plt.plot(history.history["loss"])
+        plt.title("Model loss")
+        plt.ylabel("Loss")
+        plt.xlabel("Epoch")
+        ax.xaxis.set_major_locator(plt.MaxNLocator(epochs))
+        plt.legend(["Train", "Test"], loc="upper left")
+        plt.grid()
+        plt.show()
 
         break
