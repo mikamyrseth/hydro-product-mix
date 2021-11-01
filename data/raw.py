@@ -1,0 +1,12 @@
+from enum import Enum
+
+
+class Column(str, Enum):
+    AREA = "AREA"
+    PRODUCT_TYPE_ID = "PRODUCT_TYPE_ID"
+    PRODUCT_CATEGORY = "PRODUCT_CATEGORY"
+    CUSTOMER_ID = "CUSTOMER_ID"
+    PRODUCT_ID = "PRODUCT_ID"
+    PRODUCT_FRACTION = "PRODUCT_FRACTION"
+    MONTH = "MONTH"
+    YEAR = "YEAR"
