@@ -5,8 +5,8 @@ from data.raw import Column
 
 
 def print_unique_values_by_columns(data: DataFrame):
-    included = [Column.CUSTOMER_ID, Column.MONTH, Column.YEAR]
-    local_data: DataFrame = data.drop(columns=[f"{c}" for c in data.columns if c not in included])
+    product_mix_key = [Column.AREA, Column.PRODUCT_CATEGORY, Column.PRODUCT_TYPE_ID, Column.CUSTOMER_ID, Column.MONTH, Column.YEAR]
+    local_data: DataFrame = data.drop(columns=[c for c in data.columns if c not in product_mix_key])
     local_data.drop_duplicates(inplace=True)
 
     with open("unique.csv", "w") as file:

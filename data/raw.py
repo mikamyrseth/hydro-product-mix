@@ -1,7 +1,4 @@
-from enum import Enum
-
-
-class Column(str, Enum):
+class Column:
     AREA = "AREA"
     PRODUCT_TYPE_ID = "PRODUCT_TYPE_ID"
     PRODUCT_CATEGORY = "PRODUCT_CATEGORY"
