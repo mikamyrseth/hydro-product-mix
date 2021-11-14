@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -51,6 +52,35 @@ def clean_data() -> None:
     data.to_csv("./data/cleaned.csv", sep=";")
 
 
+def clean_prediction(predictions: np.ndarray) -> np.ndarray:
+    """
+    Clean predictions.
+
+    :param predictions:
+        A NumPy NDArray with shape (None, 3934) containing predictions to be cleaned.
+    :return:
+        The cleaned predictions.
+    """
+
+    # Copy empty product
+    empty = predictions[:, 0]
+
+    # Remove small and negative values.
+    local = np.where(predictions < 0.001, 0, predictions)
+
+    # Reset empty product
+    local[:, 0] = 0
+
+    # Normalize rows
+    row_sums = local.sum(axis=1)
+    local = local / row_sums[:, np.newaxis]
+
+    # Insert empty product
+    local[:, 0] = empty
+
+    return local
+
+
 def create_model():
     model = keras.Sequential([
         keras.layers.Input(batch_shape=(None, None, 3934)),
@@ -80,15 +110,21 @@ def main():
 
     data = pd.read_csv("./data/cleaned.csv", sep=";")
     dataset = preprocess(data)
-    model = create_model()
-    model = fit_model(dataset, model)
-    model.save('models/model_2')
 
-    # model = tf.keras.models.load_model('models/model_1')
-    # for x, y in dataset.skip(800).take(1):
-    #     np.savetxt("x", x.numpy(), "%.6f")
-    #     np.savetxt("y", y.numpy(), "%.6f")
-    #     np.savetxt("p", tf.reshape(model.predict(tf.reshape(x, (1, 26, 3934))), (3934,)), "%.6f")
+    model_path = "models/model_2"
+
+    # model = create_model()
+    # model = fit_model(dataset, model)
+    # model.save(model_path)
+
+    print("Calculating prediction")
+    model = tf.keras.models.load_model(model_path)
+    for x, y in dataset.skip(3).take(1):
+        np.savetxt(f"x", x.numpy(), "%.6f")
+        np.savetxt(f"y", y.numpy(), "%.6f")
+        p = model.predict(tf.reshape(x, (1, 26, 3934)))
+        p = clean_prediction(p).reshape((3934,))
+        np.savetxt(f"p", p, "%.6f")
 
 
 def preprocess(data: DataFrame):
