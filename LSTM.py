@@ -152,9 +152,8 @@ def main():
     # Predict all and save, but remove empty product
     empty_products = []
     x_empty_products = []
+    y_empty_products = []
     for x, y in dataset:
-        np.savetxt("x.txt", x.numpy(), "%.6f")
-        np.savetxt("y.txt", y.numpy(), "%.6f")
         prediction = model.predict(tf.reshape(x, (1, 79, 3934)))
 
         prediction = clean_prediction(prediction).reshape((3934,))
@@ -165,7 +164,10 @@ def main():
         rest_of_x = last_x[1:]
         np.savetxt(f"xdata/x_{count}.txt", rest_of_x, "%.6f")
 
-        np.savetxt(f"ydata/y_{count}.txt", rest_of_x, "%.6f")
+        y_empty_product = y[0]
+        y_empty_products.append(y_empty_product)
+        rest_of_y = y[1:]
+        np.savetxt(f"ydata/y_{count}.txt", rest_of_y, "%.6f")
 
         empty_product = prediction[0]
         rest_of_prediction = prediction[1:]
@@ -179,6 +181,7 @@ def main():
     print(end - start)
     np.savetxt(f"empty_products.txt", empty_products, "%.6f")
     np.savetxt(f"x_empty_products.txt", x_empty_products, "%.6f")
+    np.savetxt(f"y_empty_products.txt", y_empty_products, "%.6f")
     model_path = "models/model_2"
 
     # model = create_model()
