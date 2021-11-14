@@ -5,6 +5,9 @@ from tensorflow import keras
 from pandas import DataFrame
 from scipy.sparse import dok_matrix
 from sklearn.preprocessing import LabelEncoder
+import tensorflow.keras.backend as kb
+import time
+import keras.backend as K
 
 from data.raw import Column
 
@@ -25,7 +28,8 @@ def clean_data() -> None:
 
     # Remove product mixes summing to 2
     # Find sum of product fraction in each product mix
-    local = data.groupby(PROD_MIX_KEY)[Column.PRODUCT_FRACTION].sum().reset_index()
+    local = data.groupby(PROD_MIX_KEY)[
+        Column.PRODUCT_FRACTION].sum().reset_index()
     # Find invalid product fraction
     local = local[1.1 < local[Column.PRODUCT_FRACTION]]
     # Filter out from data based on local
@@ -37,7 +41,7 @@ def clean_data() -> None:
             (data[Column.CUSTOMER_ID] == row[Column.CUSTOMER_ID]) &
             (data[Column.YEAR] == row[Column.YEAR]) &
             (data[Column.MONTH] == row[Column.MONTH])
-            ]
+        ]
 
         for index, _ in ting.iterrows():
             data.loc[index, Column.PRODUCT_FRACTION] /= 2
@@ -59,9 +63,16 @@ def create_model():
         keras.layers.Dense(3934),
     ])
 
+    def custom_loss(y_actual, y_pred):
+        # mask = K.less(y_pred, y_actual)
+        custom_loss = kb.square(y_actual-y_pred)
+        squared_again = kb.square(custom_loss)
+        squared_again = kb.square(squared_again)
+        squared_again = kb.square(squared_again)
+
     model.compile(
         optimizer="adam",
-        loss="mse",
+        loss='mse',
         metrics=["accuracy"],
     )
 
@@ -80,15 +91,55 @@ def main():
 
     data = pd.read_csv("./data/cleaned.csv", sep=";")
     dataset = preprocess(data)
-    model = create_model()
-    model = fit_model(dataset, model)
-    model.save('models/model_2')
 
-    # model = tf.keras.models.load_model('models/model_1')
-    # for x, y in dataset.skip(800).take(1):
-    #     np.savetxt("x", x.numpy(), "%.6f")
-    #     np.savetxt("y", y.numpy(), "%.6f")
-    #     np.savetxt("p", tf.reshape(model.predict(tf.reshape(x, (1, 26, 3934))), (3934,)), "%.6f")
+    # model = create_model()
+    # model = fit_model(dataset, model)
+    # model.save('models/model_1')
+
+    model = tf.keras.models.load_model(
+        'models/model_2', compile=False)
+
+    start = time.time()
+    print("hello")
+
+    count = 0
+
+    # Predict all and save
+    # for x, y in dataset:
+    #     np.savetxt("x.txt", x.numpy(), "%.6f")
+    #     np.savetxt("y.txt", y.numpy(), "%.6f")
+    #     np.savetxt(f"predictions/p_{count}.txt", tf.reshape(model.predict(
+    #         tf.reshape(x, (1, 79, 3934))), (3934,)), "%.6f")
+
+    #     count += 1
+
+    # Predict all and save, but remove empty product
+    empty_products = []
+    x_empty_products = []
+    for x, y in dataset:
+        np.savetxt("x.txt", x.numpy(), "%.6f")
+        np.savetxt("y.txt", y.numpy(), "%.6f")
+        prediction = tf.reshape(model.predict(
+            tf.reshape(x, (1, 79, 3934))), (3934,))
+
+        last_x = x[-1]
+        x_empty_product = last_x[0]
+        x_empty_products.append(x_empty_product)
+        rest_of_x = last_x[1:]
+        np.savetxt(f"xdata/x_{count}.txt", rest_of_x, "%.6f")
+
+        empty_product = prediction[0]
+        rest_of_prediction = prediction[1:]
+        empty_products.append(empty_product)
+
+        np.savetxt(f"predictions_2/p_{count}.txt", rest_of_prediction, "%.6f")
+
+        count += 1
+
+    end = time.time()
+    print(end - start)
+    np.savetxt(f"empty_products.txt", empty_products, "%.6f")
+    np.savetxt(f"x_empty_products.txt", x_empty_products, "%.6f")
 
 
 def preprocess(data: DataFrame):
@@ -141,7 +192,8 @@ def preprocess(data: DataFrame):
         customer_history_map[key][product_mix_index, 0] = 0
         for index, row in product_mix.iterrows():
             product_id = row[Column.PRODUCT_ID]
-            customer_history_map[key][product_mix_index, product_id] = row[Column.PRODUCT_FRACTION]
+            customer_history_map[key][product_mix_index,
+                                      product_id] = row[Column.PRODUCT_FRACTION]
 
     print("Customer history construction started")
 
@@ -153,13 +205,12 @@ def preprocess(data: DataFrame):
         histories = customer_history_map.values()
         for history in histories:
             dense = history.toarray()
-            for i in range(26, 105):
-                yield dense[i - 26:i, :], dense[i, :]
+            yield dense[25:104, :], dense[104, :]
 
     dataset = tf.data.Dataset.from_generator(
         data_generator,
         output_signature=(
-            tf.TensorSpec(shape=(26, 3934), dtype=tf.float32),
+            tf.TensorSpec(shape=(79, 3934), dtype=tf.float32),
             tf.TensorSpec(shape=(3934,), dtype=tf.float32),
         )
     )
