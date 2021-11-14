@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -53,6 +54,41 @@ def clean_data() -> None:
 
     # Save cleaned data
     data.to_csv("./data/cleaned.csv", sep=";")
+
+
+def clean_prediction(predictions: np.ndarray) -> np.ndarray:
+    """
+    Clean predictions.
+
+    :param predictions:
+        A NumPy NDArray with shape (None, 3934) containing predictions to be cleaned.
+    :return:
+        The cleaned predictions.
+    """
+
+    # Copy empty product
+    empty = predictions[:, 0]
+
+    # Remove small and negative values.
+    local = np.where(predictions < 0.004, 0, predictions)
+
+    if empty > 0.5:
+        # Reset empty product
+        local[:, 0] = 0
+
+        # Normalize rows
+        row_sums = local.sum(axis=1)
+        local = local / row_sums[:, np.newaxis]
+
+        # Insert empty product
+        local[:, 0] = empty
+
+        return local
+    else:
+        local = local*0
+        # Insert empty product
+        local[:, 0] = 1
+        return local
 
 
 def create_model():
@@ -119,8 +155,9 @@ def main():
     for x, y in dataset:
         np.savetxt("x.txt", x.numpy(), "%.6f")
         np.savetxt("y.txt", y.numpy(), "%.6f")
-        prediction = tf.reshape(model.predict(
-            tf.reshape(x, (1, 79, 3934))), (3934,))
+        prediction = model.predict(tf.reshape(x, (1, 79, 3934)))
+
+        prediction = clean_prediction(prediction).reshape((3934,))
 
         last_x = x[-1]
         x_empty_product = last_x[0]
@@ -128,11 +165,13 @@ def main():
         rest_of_x = last_x[1:]
         np.savetxt(f"xdata/x_{count}.txt", rest_of_x, "%.6f")
 
+        np.savetxt(f"ydata/y_{count}.txt", rest_of_x, "%.6f")
+
         empty_product = prediction[0]
         rest_of_prediction = prediction[1:]
         empty_products.append(empty_product)
 
-        np.savetxt(f"predictions_2/p_{count}.txt", rest_of_prediction, "%.6f")
+        np.savetxt(f"predictions_3/p_{count}.txt", rest_of_prediction, "%.6f")
 
         count += 1
 
@@ -140,6 +179,20 @@ def main():
     print(end - start)
     np.savetxt(f"empty_products.txt", empty_products, "%.6f")
     np.savetxt(f"x_empty_products.txt", x_empty_products, "%.6f")
+    model_path = "models/model_2"
+
+    # model = create_model()
+    # model = fit_model(dataset, model)
+    # model.save(model_path)
+
+    # print("Calculating prediction")
+    # model = tf.keras.models.load_model(model_path)
+    # for x, y in dataset.skip(3).take(1):
+    #     np.savetxt(f"x", x.numpy(), "%.6f")
+    #     np.savetxt(f"y", y.numpy(), "%.6f")
+    #     p = model.predict(tf.reshape(x, (1, 26, 3934)))
+    #     p = clean_prediction(p).reshape((3934,))
+    #     np.savetxt(f"p", p, "%.6f")
 
 
 def preprocess(data: DataFrame):
