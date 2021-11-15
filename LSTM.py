@@ -70,13 +70,7 @@ def clean_prediction(predictions: np.ndarray) -> np.ndarray:
     empty = predictions[:, 0]
 
     # Remove small and negative values.
-    local = np.where(predictions < 0.040, 0, predictions)
-
-    if len(local == 0):
-        local = local*0
-        # Insert empty product
-        local[:, 0] = 1
-        return local
+    local = np.where(predictions <= 0.039, 0, predictions)
 
     if empty > 0.5:
         # Reset empty product
@@ -84,6 +78,7 @@ def clean_prediction(predictions: np.ndarray) -> np.ndarray:
 
         # Normalize rows
         row_sums = local.sum(axis=1)
+        row_sums = np.where(row_sums == 0, 1, row_sums)
         local = local / row_sums[:, np.newaxis]
 
         # Insert empty product
