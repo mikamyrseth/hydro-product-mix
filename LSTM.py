@@ -1,4 +1,3 @@
-import numpy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -8,7 +7,6 @@ from scipy.sparse import dok_matrix
 from sklearn.preprocessing import LabelEncoder
 import tensorflow.keras.backend as kb
 import time
-import keras.backend as K
 
 from data.raw import Column
 
