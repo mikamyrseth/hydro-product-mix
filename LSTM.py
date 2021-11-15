@@ -70,7 +70,13 @@ def clean_prediction(predictions: np.ndarray) -> np.ndarray:
     empty = predictions[:, 0]
 
     # Remove small and negative values.
-    local = np.where(predictions < 0.004, 0, predictions)
+    local = np.where(predictions < 0.040, 0, predictions)
+
+    if len(local == 0):
+        local = local*0
+        # Insert empty product
+        local[:, 0] = 1
+        return local
 
     if empty > 0.5:
         # Reset empty product
@@ -156,7 +162,9 @@ def main():
     for x, y in dataset:
         prediction = model.predict(tf.reshape(x, (1, 79, 3934)))
 
-        prediction = clean_prediction(prediction).reshape((3934,))
+        cleaned_prediction = clean_prediction(prediction).reshape((3934,))
+
+        prediction = prediction.reshape((3934,))
 
         last_x = x[-1]
         x_empty_product = last_x[0]
@@ -171,9 +179,13 @@ def main():
 
         empty_product = prediction[0]
         rest_of_prediction = prediction[1:]
+        rest_of_clean_prediction = cleaned_prediction[1:]
         empty_products.append(empty_product)
 
-        np.savetxt(f"predictions_3/p_{count}.txt", rest_of_prediction, "%.6f")
+        np.savetxt(
+            f"clean_predictions_3/p_{count}.txt", rest_of_clean_prediction, "%.6f")
+        np.savetxt(
+            f"raw_predictions_3/p_{count}.txt", rest_of_prediction, "%.6f")
 
         count += 1
 
