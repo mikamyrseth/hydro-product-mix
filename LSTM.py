@@ -72,7 +72,7 @@ def clean_prediction(predictions: np.ndarray) -> np.ndarray:
     # Remove small and negative values.
     local = np.where(predictions <= 0.039, 0, predictions)
 
-    if empty > 0.5:
+    if empty < 0.5:
         # Reset empty product
         local[:, 0] = 0
 
@@ -165,22 +165,34 @@ def main():
         x_empty_product = last_x[0]
         x_empty_products.append(x_empty_product)
         rest_of_x = last_x[1:]
-        np.savetxt(f"xdata/x_{count}.txt", rest_of_x, "%.6f")
+        # np.savetxt(f"xdata/x_{count}.txt", rest_of_x, "%.6f")
+
+        np.savetxt(f"xdata/x_{count}.csv", np.dstack((np.arange(1, 3934),
+                                                      rest_of_x, np.full((3933), count)))[0], "%.6f", header="Product,Product_fraction,Customer")
 
         y_empty_product = y[0]
         y_empty_products.append(y_empty_product)
         rest_of_y = y[1:]
-        np.savetxt(f"ydata/y_{count}.txt", rest_of_y, "%.6f")
+        # np.savetxt(f"ydata/y_{count}.txt", rest_of_y, "%.6f")
+
+        np.savetxt(f"ydata/y_{count}.csv", np.dstack((np.arange(1, 3934),
+                                                      rest_of_y, np.full((3933), count)))[0], "%.6f", header="Product,Product_fraction,Customer")
 
         empty_product = prediction[0]
         rest_of_prediction = prediction[1:]
         rest_of_clean_prediction = cleaned_prediction[1:]
         empty_products.append(empty_product)
 
-        np.savetxt(
-            f"clean_predictions_3/p_{count}.txt", rest_of_clean_prediction, "%.6f")
-        np.savetxt(
-            f"raw_predictions_3/p_{count}.txt", rest_of_prediction, "%.6f")
+        # np.savetxt(
+        #     f"clean_predictions_3/p_{count}.txt", rest_of_clean_prediction, "%.6f")
+        # np.savetxt(
+        #     f"raw_predictions_3/p_{count}.txt", rest_of_prediction, "%.6f")
+
+        np.savetxt(f"clean_predictions_3/p_{count}.csv", np.dstack((np.arange(1, 3934),
+                                                                    rest_of_clean_prediction, np.full((3933), count)))[0], "%.6f", header="Product,Product_fraction,Customer")
+
+        np.savetxt(f"raw_predictions_3/p_{count}.csv", np.dstack((np.arange(1, 3934),
+                                                                  rest_of_prediction, np.full((3933), count)))[0], "%.6f", header="Product,Product_fraction,Customer")
 
         count += 1
 
