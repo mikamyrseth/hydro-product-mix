@@ -1,4 +1,3 @@
-import numpy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -8,12 +7,45 @@ from scipy.sparse import dok_matrix
 from sklearn.preprocessing import LabelEncoder
 import tensorflow.keras.backend as kb
 import time
-import keras.backend as K
 
 from data.raw import Column
 
 PROD_MIX_KEY = [Column.AREA, Column.PRODUCT_CATEGORY, Column.PRODUCT_TYPE_ID, Column.CUSTOMER_ID,
                 Column.YEAR, Column.MONTH]
+
+
+def analyse_real_empty_time_series(dataset) -> None:
+    """
+    Do analysis of time series where all input is empty.
+
+    :param dataset: Dataset with input and labels.
+    :return: None.
+    """
+
+    print("Started analysis of time series with empty input.")
+
+    real_empty = 0
+    real_mix = 0
+    for x, y in dataset:
+        # Continue if not all input is empty.
+        s = np.sum(x[:, 0])
+        if s != 26:
+            continue
+
+        # Classify label
+        if y[0] == 1:
+            real_empty += 1
+        else:
+            real_mix += 1
+
+    no = real_empty + real_mix
+    with open("data_insight/empty_sequences.csv", "w") as file:
+        file.write(f"NAME;VALUE\n")
+        file.write(f"Time series;{no}\n")
+        file.write(f"Empty label;{real_empty}\n")
+        file.write(f"Empty label ratio;{real_empty / no}\n")
+        file.write(f"Mix label;{real_mix}\n")
+        file.write(f"Mix label ratio;{real_mix / no}\n")
 
 
 def clean_data() -> None:
@@ -280,12 +312,15 @@ def preprocess(data: DataFrame):
         histories = customer_history_map.values()
         for history in histories:
             dense = history.toarray()
-            yield dense[25:104, :], dense[104, :]
+            for i in range(26, 105):
+                yield dense[i - 26:i, :], dense[i, :]
+            # yield dense[25:104, :], dense[104, :]
 
     dataset = tf.data.Dataset.from_generator(
         data_generator,
         output_signature=(
-            tf.TensorSpec(shape=(79, 3934), dtype=tf.float32),
+            tf.TensorSpec(shape=(26, 3934), dtype=tf.float32),
+            # tf.TensorSpec(shape=(79, 3934), dtype=tf.float32),
             tf.TensorSpec(shape=(3934,), dtype=tf.float32),
         )
     )
